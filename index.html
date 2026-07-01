@@ -252,9 +252,10 @@
         }
 
         .details-section.visible {
-            max-height: 800px;
+            max-height: 1000px;
             opacity: 1;
             margin-bottom: 30px;
+            overflow-y: auto;
         }
 
         table {
@@ -407,8 +408,9 @@
             'Loic': 'loic'
         };
 
-        // Date de début de rotation (semaine 27, 29/06/2026 = JB)
-        const ROTATION_START_DATE = new Date(2026, 5, 29); // 29 juin 2026
+        // Référence de rotation : 29/06/2026 (dimanche de la semaine 26) = JB commence la semaine 27
+        const ROTATION_START_DATE = new Date(Date.UTC(2026, 5, 29)); // 29 juin 2026 (UTC)
+        const ROTATION_START_WEEK = 27; // Semaine ISO 27
         const ROTATION_START_INDEX = 0; // JB commence
 
         // ==================== GESTION DES DATES ====================
@@ -423,6 +425,18 @@
             d.setUTCDate(d.getUTCDate() + 4 - dayNum);
             const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
             return Math.round((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        /**
+         * Obtient l'année ISO pour une date donnée
+         * @param {Date} date - La date
+         * @returns {number} - Année ISO
+         */
+        function getISOYear(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            return d.getUTCFullYear();
         }
 
         /**
@@ -452,14 +466,16 @@
         }
 
         /**
-         * Calcule le nombre de semaines entre deux dates
-         * @param {Date} date1 - Première date
-         * @param {Date} date2 - Deuxième date
-         * @returns {number} - Nombre de semaines
+         * Obtient les dates d'une semaine ISO
+         * @param {number} week - Numéro de semaine ISO
+         * @param {number} year - Année ISO
+         * @returns {Object} - Objet avec startDate et endDate
          */
-        function getWeeksDifference(date1, date2) {
-            const msPerWeek = 604800000;
-            return Math.floor((date2 - date1) / msPerWeek);
+        function getWeekDates(week, year) {
+            const monday = getMondayOfWeek(week, year);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            return { startDate: monday, endDate: sunday };
         }
 
         // ==================== GESTION DES VACANCES ====================
@@ -580,44 +596,40 @@
 
         /**
          * Obtient le responsable pour une semaine donnée
+         * Utilise un calcul relatif à partir de la semaine de référence
          * @param {number} week - Numéro de semaine ISO
-         * @param {number} year - Année
+         * @param {number} year - Année ISO
          * @returns {string} - Nom du responsable
          */
         function getResponsibleForWeek(week, year) {
-            const targetDate = getMondayOfWeek(week, year);
-            const startDate = new Date(ROTATION_START_DATE);
-            const weeksDiff = getWeeksDifference(startDate, targetDate);
+            // Calculer la différence de semaines par rapport à la référence
+            // Formule : si (semaine - référence) % 3 = 0 -> JB, 1 -> Damien, 2 -> Loic
+            const weekDiff = (week - ROTATION_START_WEEK + 52) % 52;
+            
+            // Ajustement pour les années différentes
+            let adjustedDiff = weekDiff;
+            if (year > 2026) {
+                adjustedDiff = weekDiff + (year - 2026) * 52;
+            } else if (year < 2026) {
+                adjustedDiff = weekDiff - (2026 - year) * 52;
+            }
 
-            // Index initial dans la rotation
-            let index = (ROTATION_START_INDEX + Math.floor(weeksDiff / 7)) % TEAM.length;
+            // Index dans la rotation
+            let index = (ROTATION_START_INDEX + Math.floor(adjustedDiff / 1)) % TEAM.length;
             let responsible = TEAM[index];
 
             // Vérifier les vacances et rotationner si nécessaire
-            let checkDate = new Date(targetDate);
-            const maxIterations = 52; // Éviter les boucles infinies
+            const { startDate: mondayOfWeek } = getWeekDates(week, year);
+            const maxIterations = 52;
             let iterations = 0;
 
-            while (isOnVacation(responsible, checkDate) && iterations < maxIterations) {
+            while (isOnVacation(responsible, mondayOfWeek) && iterations < maxIterations) {
                 index = (index + 1) % TEAM.length;
                 responsible = TEAM[index];
                 iterations++;
             }
 
             return responsible;
-        }
-
-        /**
-         * Récupère les dates d'une semaine ISO
-         * @param {number} week - Numéro de semaine ISO
-         * @param {number} year - Année
-         * @returns {Object} - Objet avec startDate et endDate
-         */
-        function getWeekDates(week, year) {
-            const monday = getMondayOfWeek(week, year);
-            const sunday = new Date(monday);
-            sunday.setDate(monday.getDate() + 6);
-            return { startDate: monday, endDate: sunday };
         }
 
         // ==================== MISE À JOUR DE L'INTERFACE ====================
@@ -627,7 +639,7 @@
         function updateMainCard() {
             const today = new Date();
             const currentWeek = getISOWeekNumber(today);
-            const currentYear = today.getFullYear();
+            const currentYear = getISOYear(today);
 
             const responsible = getResponsibleForWeek(currentWeek, currentYear);
             const { startDate, endDate } = getWeekDates(currentWeek, currentYear);
@@ -647,7 +659,7 @@
         function updateDetailsTable() {
             const today = new Date();
             const currentWeek = getISOWeekNumber(today);
-            const currentYear = today.getFullYear();
+            const currentYear = getISOYear(today);
 
             const tableBody = document.getElementById('tableBody');
             let html = '';
