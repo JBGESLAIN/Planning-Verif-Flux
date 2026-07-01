@@ -408,52 +408,45 @@
             'Loic': 'loic'
         };
 
-        // Référence de rotation : 29/06/2026 (dimanche de la semaine 26) = JB commence la semaine 27
-        const ROTATION_START_DATE = new Date(Date.UTC(2026, 5, 29)); // 29 juin 2026 (UTC)
-        const ROTATION_START_WEEK = 27; // Semaine ISO 27
-        const ROTATION_START_INDEX = 0; // JB commence
+        // Point de référence : 29/06/2026 = JB (semaine 27)
+        const REFERENCE_DATE = new Date(2026, 5, 29); // 29 juin 2026 (lundi)
+        const REFERENCE_WEEK = 27;
+        const REFERENCE_YEAR = 2026;
+        const REFERENCE_INDEX = 0; // JB
 
         // ==================== GESTION DES DATES ====================
         /**
-         * Obtient le numéro de semaine ISO pour une date donnée
+         * Obtient le numéro de semaine ISO pour une date donnée (formule correcte)
          * @param {Date} date - La date
-         * @returns {number} - Numéro de semaine ISO
+         * @returns {object} - {week, year} en format ISO
          */
-        function getISOWeekNumber(date) {
+        function getISOWeek(date) {
             const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
             const dayNum = d.getUTCDay() || 7;
             d.setUTCDate(d.getUTCDate() + 4 - dayNum);
             const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-            return Math.round((((d - yearStart) / 86400000) + 1) / 7);
-        }
-
-        /**
-         * Obtient l'année ISO pour une date donnée
-         * @param {Date} date - La date
-         * @returns {number} - Année ISO
-         */
-        function getISOYear(date) {
-            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-            const dayNum = d.getUTCDay() || 7;
-            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-            return d.getUTCFullYear();
+            const weekNum = Math.round((((d - yearStart) / 86400000) + 1) / 7);
+            return { week: weekNum, year: d.getUTCFullYear() };
         }
 
         /**
          * Obtient le lundi de la semaine ISO donnée
          * @param {number} week - Numéro de semaine ISO
-         * @param {number} year - Année
+         * @param {number} year - Année ISO
          * @returns {Date} - Le lundi de la semaine
          */
         function getMondayOfWeek(week, year) {
-            const simple = new Date(year, 0, 1 + (week - 1) * 7);
-            const dow = simple.getDay();
-            const ISOweekStart = simple;
-            if (dow <= 4)
-                ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-            else
-                ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-            return ISOweekStart;
+            // Créer une date au 4 janvier (toujours dans semaine 1)
+            const jan4 = new Date(year, 0, 4);
+            const dayOfWeek = jan4.getDay();
+            const mondayOfWeek1 = new Date(jan4);
+            mondayOfWeek1.setDate(jan4.getDate() - dayOfWeek + 1);
+            
+            // Ajouter les semaines
+            const monday = new Date(mondayOfWeek1);
+            monday.setDate(mondayOfWeek1.getDate() + (week - 1) * 7);
+            
+            return monday;
         }
 
         /**
@@ -595,31 +588,38 @@
         }
 
         /**
+         * Calcule le nombre de semaines entre deux dates (en semaines ISO)
+         * @param {Date} fromDate - Date de départ
+         * @param {Date} toDate - Date d'arrivée
+         * @returns {number} - Nombre de semaines
+         */
+        function weeksDifference(fromDate, toDate) {
+            const fromWeek = getISOWeek(fromDate);
+            const toWeek = getISOWeek(toDate);
+            
+            // Calculer la différence de semaines en tenant compte des années
+            let diff = (toWeek.year - fromWeek.year) * 52 + (toWeek.week - fromWeek.week);
+            return diff;
+        }
+
+        /**
          * Obtient le responsable pour une semaine donnée
-         * Utilise un calcul relatif à partir de la semaine de référence
          * @param {number} week - Numéro de semaine ISO
          * @param {number} year - Année ISO
          * @returns {string} - Nom du responsable
          */
         function getResponsibleForWeek(week, year) {
-            // Calculer la différence de semaines par rapport à la référence
-            // Formule : si (semaine - référence) % 3 = 0 -> JB, 1 -> Damien, 2 -> Loic
-            const weekDiff = (week - ROTATION_START_WEEK + 52) % 52;
+            // Obtenir le lundi de la semaine
+            const mondayOfWeek = getMondayOfWeek(week, year);
             
-            // Ajustement pour les années différentes
-            let adjustedDiff = weekDiff;
-            if (year > 2026) {
-                adjustedDiff = weekDiff + (year - 2026) * 52;
-            } else if (year < 2026) {
-                adjustedDiff = weekDiff - (2026 - year) * 52;
-            }
-
-            // Index dans la rotation
-            let index = (ROTATION_START_INDEX + Math.floor(adjustedDiff / 1)) % TEAM.length;
+            // Calculer les semaines écoulées depuis la référence
+            const weeksFromReference = weeksDifference(REFERENCE_DATE, mondayOfWeek);
+            
+            // Calculer l'index dans la rotation
+            let index = (REFERENCE_INDEX + weeksFromReference) % TEAM.length;
             let responsible = TEAM[index];
 
             // Vérifier les vacances et rotationner si nécessaire
-            const { startDate: mondayOfWeek } = getWeekDates(week, year);
             const maxIterations = 52;
             let iterations = 0;
 
@@ -638,8 +638,7 @@
          */
         function updateMainCard() {
             const today = new Date();
-            const currentWeek = getISOWeekNumber(today);
-            const currentYear = getISOYear(today);
+            const { week: currentWeek, year: currentYear } = getISOWeek(today);
 
             const responsible = getResponsibleForWeek(currentWeek, currentYear);
             const { startDate, endDate } = getWeekDates(currentWeek, currentYear);
@@ -658,8 +657,7 @@
          */
         function updateDetailsTable() {
             const today = new Date();
-            const currentWeek = getISOWeekNumber(today);
-            const currentYear = getISOYear(today);
+            const { week: currentWeek, year: currentYear } = getISOWeek(today);
 
             const tableBody = document.getElementById('tableBody');
             let html = '';
@@ -669,6 +667,7 @@
                 let week = currentWeek + i;
                 let year = currentYear;
 
+                // Ajustement pour dépasser la semaine 53
                 if (week > 53) {
                     week -= 53;
                     year += 1;
