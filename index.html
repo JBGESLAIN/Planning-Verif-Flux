@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Vérification Flux</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --jb-color: #92d050;
+            --damien-color: #f4b183;
+            --loic-color: #5b9bd5;
+            --bg-light: #f8f9fa;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        /* Carte Principale */
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .week-number {
+            font-size: 0.9em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        .responsible-name {
+            font-size: 3.5em;
+            font-weight: 700;
+            margin: 30px 0;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            transition: var(--transition);
+        }
+
+        .responsible-name.jb { background: var(--jb-color); color: #2d5c2d; }
+        .responsible-name.damien { background: var(--damien-color); color: #8b4513; }
+        .responsible-name.loic { background: var(--loic-color); color: #1a3a52; }
+
+        .task-title {
+            font-size: 1.3em;
+            color: #666;
+            margin: 20px 0;
+        }
+
+        .dates {
+            font-size: 1.1em;
+            color: #999;
+            margin-top: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+            font-size: 0.9em;
+            padding: 8px 16px;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        /* Section Vacances */
+        .vacation-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .vacation-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 15px;
+            margin-bottom: 30px;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        select, input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .vacation-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .vacation-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .vacation-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .vacation-item.jb { border-left-color: var(--jb-color); }
+        .vacation-item.damien { border-left-color: var(--damien-color); }
+        .vacation-item.loic { border-left-color: var(--loic-color); }
+
+        .no-vacation {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+            font-size: 1.1em;
+        }
+
+        /* Tableau Détails */
+        .details-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            max-height: 0;
+            overflow: hidden;
+            transition: var(--transition);
+            opacity: 0;
+        }
+
+        .details-section.visible {
+            max-height: 800px;
+            opacity: 1;
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table thead {
+            background: #f8f9fa;
+        }
+
+        table th {
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        table td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            color: #666;
+        }
+
+        table tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .main-card {
+                padding: 25px;
+            }
+
+            .responsible-name {
+                font-size: 2.5em;
+            }
+
+            .vacation-form {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            table {
+                font-size: 0.9em;
+            }
+
+            table th, table td {
+                padding: 10px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📅 Planning Vérification Flux</h1>
+            <p class="subtitle">Gestion de la rotation d'équipe</p>
+        </header>
+
+        <!-- Carte Principale -->
+        <div class="main-card">
+            <div class="week-number">Semaine <span id="weekNumber">27</span></div>
+            <div class="responsible-name" id="responsibleName">JB</div>
+            <div class="task-title">Vérification des Flux</div>
+            <div class="dates" id="weekDates">Du 29/06/2026 au 05/07/2026</div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="toggleDetails()">Afficher les détails</button>
+            </div>
+        </div>
+
+        <!-- Section Vacances -->
+        <div class="vacation-section">
+            <div class="section-title">🏖️ Gestion des Congés</div>
+            <div class="vacation-form">
+                <div class="form-group">
+                    <label for="collaborator">Collaborateur</label>
+                    <select id="collaborator">
+                        <option value="">Sélectionner...</option>
+                        <option value="JB">JB</option>
+                        <option value="Damien">Damien</option>
+                        <option value="Loic">Loic</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="startDate">Date début</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">Date fin</label>
+                    <input type="date" id="endDate">
+                </div>
+                <button class="btn-primary" onclick="addVacation()">Ajouter</button>
+            </div>
+
+            <div id="vacationList" class="vacation-list">
+                <div class="no-vacation">Aucun congé enregistré</div>
+            </div>
+
+            <button class="btn-danger" onclick="clearAllVacations()" style="margin-top: 20px;">Tout supprimer</button>
+        </div>
+
+        <!-- Section Détails -->
+        <div class="details-section" id="detailsSection">
+            <div class="section-title">📋 Détails des Semaines</div>
+            <table id="detailsTable">
+                <thead>
+                    <tr>
+                        <th>Semaine</th>
+                        <th>Dates</th>
+                        <th>Responsable</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ==================== CONFIGURATION ====================
+        const TEAM = ['JB', 'Damien', 'Loic'];
+        const COLORS = {
+            'JB': 'jb',
+            'Damien': 'damien',
+            'Loic': 'loic'
+        };
+
+        // Date de début de rotation (semaine 27, 29/06/2026 = JB)
+        const ROTATION_START_DATE = new Date(2026, 5, 29); // 29 juin 2026
+        const ROTATION_START_INDEX = 0; // JB commence
+
+        // ==================== GESTION DES DATES ====================
+        /**
+         * Obtient le numéro de semaine ISO pour une date donnée
+         * @param {Date} date - La date
+         * @returns {number} - Numéro de semaine ISO
+         */
+        function getISOWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.round((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        /**
+         * Obtient le lundi de la semaine ISO donnée
+         * @param {number} week - Numéro de semaine ISO
+         * @param {number} year - Année
+         * @returns {Date} - Le lundi de la semaine
+         */
+        function getMondayOfWeek(week, year) {
+            const simple = new Date(year, 0, 1 + (week - 1) * 7);
+            const dow = simple.getDay();
+            const ISOweekStart = simple;
+            if (dow <= 4)
+                ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+            else
+                ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+            return ISOweekStart;
+        }
+
+        /**
+         * Formate une date au format DD/MM/YYYY
+         * @param {Date} date - La date à formater
+         * @returns {string} - Date formatée
+         */
+        function formatDate(date) {
+            return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        /**
+         * Calcule le nombre de semaines entre deux dates
+         * @param {Date} date1 - Première date
+         * @param {Date} date2 - Deuxième date
+         * @returns {number} - Nombre de semaines
+         */
+        function getWeeksDifference(date1, date2) {
+            const msPerWeek = 604800000;
+            return Math.floor((date2 - date1) / msPerWeek);
+        }
+
+        // ==================== GESTION DES VACANCES ====================
+        /**
+         * Récupère les vacances depuis le LocalStorage
+         * @returns {Array} - Tableau des vacances
+         */
+        function getVacations() {
+            return JSON.parse(localStorage.getItem('vacations')) || [];
+        }
+
+        /**
+         * Sauvegarde les vacances dans le LocalStorage
+         * @param {Array} vacations - Tableau des vacances
+         */
+        function saveVacations(vacations) {
+            localStorage.setItem('vacations', JSON.stringify(vacations));
+        }
+
+        /**
+         * Ajoute une période de vacances
+         */
+        function addVacation() {
+            const collaborator = document.getElementById('collaborator').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!collaborator || !startDate || !endDate) {
+                alert('Veuillez remplir tous les champs');
+                return;
+            }
+
+            const vacation = {
+                collaborator,
+                startDate: new Date(startDate),
+                endDate: new Date(endDate),
+                id: Date.now()
+            };
+
+            const vacations = getVacations();
+            vacations.push(vacation);
+            saveVacations(vacations);
+
+            // Réinitialiser le formulaire
+            document.getElementById('collaborator').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+
+            updateVacationList();
+            updateMainCard();
+        }
+
+        /**
+         * Supprime une période de vacances
+         * @param {number} id - ID de la vacation
+         */
+        function removeVacation(id) {
+            const vacations = getVacations();
+            const filtered = vacations.filter(v => v.id !== id);
+            saveVacations(filtered);
+            updateVacationList();
+            updateMainCard();
+        }
+
+        /**
+         * Supprime toutes les vacances
+         */
+        function clearAllVacations() {
+            if (confirm('Êtes-vous sûr de vouloir supprimer tous les congés ?')) {
+                localStorage.setItem('vacations', JSON.stringify([]));
+                updateVacationList();
+                updateMainCard();
+            }
+        }
+
+        /**
+         * Met à jour l'affichage de la liste des vacances
+         */
+        function updateVacationList() {
+            const vacations = getVacations();
+            const vacationList = document.getElementById('vacationList');
+
+            if (vacations.length === 0) {
+                vacationList.innerHTML = '<div class="no-vacation">Aucun congé enregistré</div>';
+                return;
+            }
+
+            vacationList.innerHTML = vacations
+                .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+                .map(v => `
+                    <div class="vacation-item ${COLORS[v.collaborator]}">
+                        <div class="vacation-info">
+                            <span>🏖️ ${v.collaborator} : ${formatDate(new Date(v.startDate))} → ${formatDate(new Date(v.endDate))}</span>
+                        </div>
+                        <button class="btn-danger" onclick="removeVacation(${v.id})">Supprimer</button>
+                    </div>
+                `)
+                .join('');
+        }
+
+        // ==================== GESTION DE LA ROTATION ====================
+        /**
+         * Vérifie si un collaborateur est en vacances à une date donnée
+         * @param {string} collaborator - Nom du collaborateur
+         * @param {Date} date - Date à vérifier
+         * @returns {boolean} - true si en vacances
+         */
+        function isOnVacation(collaborator, date) {
+            const vacations = getVacations();
+            return vacations.some(v => {
+                const startDate = new Date(v.startDate);
+                const endDate = new Date(v.endDate);
+                return v.collaborator === collaborator && 
+                       date >= startDate && 
+                       date <= endDate;
+            });
+        }
+
+        /**
+         * Obtient le responsable pour une semaine donnée
+         * @param {number} week - Numéro de semaine ISO
+         * @param {number} year - Année
+         * @returns {string} - Nom du responsable
+         */
+        function getResponsibleForWeek(week, year) {
+            const targetDate = getMondayOfWeek(week, year);
+            const startDate = new Date(ROTATION_START_DATE);
+            const weeksDiff = getWeeksDifference(startDate, targetDate);
+
+            // Index initial dans la rotation
+            let index = (ROTATION_START_INDEX + Math.floor(weeksDiff / 7)) % TEAM.length;
+            let responsible = TEAM[index];
+
+            // Vérifier les vacances et rotationner si nécessaire
+            let checkDate = new Date(targetDate);
+            const maxIterations = 52; // Éviter les boucles infinies
+            let iterations = 0;
+
+            while (isOnVacation(responsible, checkDate) && iterations < maxIterations) {
+                index = (index + 1) % TEAM.length;
+                responsible = TEAM[index];
+                iterations++;
+            }
+
+            return responsible;
+        }
+
+        /**
+         * Récupère les dates d'une semaine ISO
+         * @param {number} week - Numéro de semaine ISO
+         * @param {number} year - Année
+         * @returns {Object} - Objet avec startDate et endDate
+         */
+        function getWeekDates(week, year) {
+            const monday = getMondayOfWeek(week, year);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            return { startDate: monday, endDate: sunday };
+        }
+
+        // ==================== MISE À JOUR DE L'INTERFACE ====================
+        /**
+         * Met à jour la carte principale
+         */
+        function updateMainCard() {
+            const today = new Date();
+            const currentWeek = getISOWeekNumber(today);
+            const currentYear = today.getFullYear();
+
+            const responsible = getResponsibleForWeek(currentWeek, currentYear);
+            const { startDate, endDate } = getWeekDates(currentWeek, currentYear);
+
+            document.getElementById('weekNumber').textContent = currentWeek;
+            document.getElementById('responsibleName').textContent = responsible;
+            document.getElementById('responsibleName').className = `responsible-name ${COLORS[responsible]}`;
+            document.getElementById('weekDates').textContent = 
+                `Du ${formatDate(startDate)} au ${formatDate(endDate)}`;
+
+            updateDetailsTable();
+        }
+
+        /**
+         * Met à jour le tableau de détails
+         */
+        function updateDetailsTable() {
+            const today = new Date();
+            const currentWeek = getISOWeekNumber(today);
+            const currentYear = today.getFullYear();
+
+            const tableBody = document.getElementById('tableBody');
+            let html = '';
+
+            // Afficher 52 semaines (1 an)
+            for (let i = 0; i < 52; i++) {
+                let week = currentWeek + i;
+                let year = currentYear;
+
+                if (week > 53) {
+                    week -= 53;
+                    year += 1;
+                }
+
+                const responsible = getResponsibleForWeek(week, year);
+                const { startDate, endDate } = getWeekDates(week, year);
+
+                html += `
+                    <tr>
+                        <td>S${week}</td>
+                        <td>${formatDate(startDate)} - ${formatDate(endDate)}</td>
+                        <td style="font-weight: 700; color: #333;">
+                            <span style="display: inline-block; 
+                                        padding: 8px 16px; 
+                                        border-radius: 8px;
+                                        background-color: var(--${COLORS[responsible]}-color);">
+                                ${responsible}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tableBody.innerHTML = html;
+        }
+
+        /**
+         * Bascule l'affichage du tableau de détails
+         */
+        function toggleDetails() {
+            const detailsSection = document.getElementById('detailsSection');
+            detailsSection.classList.toggle('visible');
+        }
+
+        // ==================== INITIALISATION ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            updateMainCard();
+            updateVacationList();
+        });
+    </script>
+</body>
+</html>
