@@ -721,80 +721,6 @@
             localStorage.setItem('overrides', JSON.stringify(overrides));
         }
 
-        /**
-         * Obtient le responsable pour une semaine donnée (avec override si existe)
-         * @param {number} week - Numéro de semaine ISO
-         * @param {number} year - Année ISO
-         * @returns {string} - Nom du responsable
-         */
-        function getResponsibleForWeek(week, year) {
-            const key = `${week}-${year}`;
-            const overrides = getOverrides();
-
-            // Vérifier s'il y a un override
-            if (overrides[key]) {
-                return overrides[key];
-            }
-
-            // Sinon, calculer selon la rotation
-            let weeksFromReference = 0;
-            
-            if (year === REFERENCE_WEEK && week === REFERENCE_WEEK) {
-                weeksFromReference = 0;
-            } else if (year > REFERENCE_WEEK || (year === REFERENCE_WEEK && week > REFERENCE_WEEK)) {
-                if (year === REFERENCE_WEEK) {
-                    weeksFromReference = week - REFERENCE_WEEK;
-                } else {
-                    weeksFromReference = (52 - REFERENCE_WEEK + 1) + (year - REFERENCE_WEEK - 1) * 52 + week;
-                }
-            } else {
-                if (year === REFERENCE_WEEK) {
-                    weeksFromReference = week - REFERENCE_WEEK;
-                } else {
-                    weeksFromReference = -((REFERENCE_WEEK - 1) + (REFERENCE_WEEK - year) * 52 - week);
-                }
-            }
-
-            let index = (REFERENCE_INDEX + weeksFromReference) % TEAM.length;
-            if (index < 0) index += TEAM.length;
-            
-            let responsible = TEAM[index];
-
-            // Vérifier les vacances et rotationner si nécessaire
-            const { startDate: mondayOfWeek } = getWeekDates(week, year);
-            const maxIterations = 52;
-            let iterations = 0;
-
-            while (isOnVacation(responsible, mondayOfWeek) && iterations < maxIterations) {
-                index = (index + 1) % TEAM.length;
-                responsible = TEAM[index];
-                iterations++;
-            }
-
-            return responsible;
-        }
-
-        /**
-         * Modifie le responsable de la semaine en cours
-         * @param {string} newResponsible - Nouveau responsable
-         */
-        function setWeekResponsible(newResponsible) {
-            const oldResponsible = getResponsibleForWeek(currentWeek, currentYear);
-            const overrides = getOverrides();
-            const key = `${currentWeek}-${currentYear}`;
-            
-            overrides[key] = newResponsible;
-            saveOverrides(overrides);
-
-            addLog(
-                '✏️ Responsable modifié',
-                `Semaine ${currentWeek} : ${oldResponsible} → ${newResponsible}`,
-                'change'
-            );
-
-            updateMainCard();
-        }
-
         // ==================== GESTION DES DATES ====================
         /**
          * Obtient le numéro de semaine ISO pour une date donnée (formule ISO 8601)
@@ -871,6 +797,93 @@
             localStorage.setItem('vacations', JSON.stringify(vacations));
         }
 
+        function isOnVacation(collaborator, date) {
+            const vacations = getVacations();
+            return vacations.some(v => {
+                const startDate = new Date(v.startDate);
+                const endDate = new Date(v.endDate);
+                return v.collaborator === collaborator && 
+                       date >= startDate && 
+                       date <= endDate;
+            });
+        }
+
+        /**
+         * Obtient le responsable pour une semaine donnée avec gestion complète des rotations et vacances
+         * @param {number} week - Numéro de semaine ISO
+         * @param {number} year - Année ISO
+         * @returns {string} - Nom du responsable
+         */
+        function getResponsibleForWeek(week, year) {
+            const key = `${week}-${year}`;
+            const overrides = getOverrides();
+
+            // Vérifier s'il y a un override
+            if (overrides[key]) {
+                return overrides[key];
+            }
+
+            // Calculer le responsable nominal selon la rotation
+            let weeksFromReference = 0;
+            
+            if (year === REFERENCE_WEEK && week === REFERENCE_WEEK) {
+                weeksFromReference = 0;
+            } else if (year > REFERENCE_WEEK || (year === REFERENCE_WEEK && week > REFERENCE_WEEK)) {
+                if (year === REFERENCE_WEEK) {
+                    weeksFromReference = week - REFERENCE_WEEK;
+                } else {
+                    weeksFromReference = (52 - REFERENCE_WEEK + 1) + (year - REFERENCE_WEEK - 1) * 52 + week;
+                }
+            } else {
+                if (year === REFERENCE_WEEK) {
+                    weeksFromReference = week - REFERENCE_WEEK;
+                } else {
+                    weeksFromReference = -((REFERENCE_WEEK - 1) + (REFERENCE_WEEK - year) * 52 - week);
+                }
+            }
+
+            const { startDate: mondayOfWeek } = getWeekDates(week, year);
+
+            // Chercher le premier disponible en partant de l'index nominal
+            let index = (REFERENCE_INDEX + weeksFromReference) % TEAM.length;
+            if (index < 0) index += TEAM.length;
+            
+            let responsible = TEAM[index];
+            const maxIterations = 52;
+            let iterations = 0;
+
+            // Si le responsable nominal est en vacances, passer au suivant
+            while (isOnVacation(responsible, mondayOfWeek) && iterations < maxIterations) {
+                index = (index + 1) % TEAM.length;
+                responsible = TEAM[index];
+                iterations++;
+            }
+
+            return responsible;
+        }
+
+        /**
+         * Modifie le responsable de la semaine en cours
+         * @param {string} newResponsible - Nouveau responsable
+         */
+        function setWeekResponsible(newResponsible) {
+            const oldResponsible = getResponsibleForWeek(currentWeek, currentYear);
+            const overrides = getOverrides();
+            const key = `${currentWeek}-${currentYear}`;
+            
+            overrides[key] = newResponsible;
+            saveOverrides(overrides);
+
+            addLog(
+                '✏️ Responsable modifié',
+                `Semaine ${currentWeek} : ${oldResponsible} → ${newResponsible}`,
+                'change'
+            );
+
+            updateMainCard();
+        }
+
+        // ==================== GESTION DES VACANCES ====================
         function addVacation() {
             const collaborator = document.getElementById('collaborator').value;
             const startDate = document.getElementById('startDate').value;
@@ -903,6 +916,7 @@
             document.getElementById('endDate').value = '';
 
             updateVacationList();
+            // Recalculer la planification car les vacances affectent la rotation
             updateMainCard();
         }
 
@@ -921,6 +935,7 @@
             }
 
             updateVacationList();
+            // Recalculer la planification car les vacances affectent la rotation
             updateMainCard();
         }
 
@@ -929,6 +944,7 @@
                 localStorage.setItem('vacations', JSON.stringify([]));
                 addLog('🗑️ Tous les congés supprimés', 'Tous les enregistrements de vacances ont été effacés', 'vacation');
                 updateVacationList();
+                // Recalculer la planification car les vacances affectent la rotation
                 updateMainCard();
             }
         }
@@ -953,17 +969,6 @@
                     </div>
                 `)
                 .join('');
-        }
-
-        function isOnVacation(collaborator, date) {
-            const vacations = getVacations();
-            return vacations.some(v => {
-                const startDate = new Date(v.startDate);
-                const endDate = new Date(v.endDate);
-                return v.collaborator === collaborator && 
-                       date >= startDate && 
-                       date <= endDate;
-            });
         }
 
         // ==================== MODAL MODIFICATION ====================
