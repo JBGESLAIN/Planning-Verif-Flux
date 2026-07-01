@@ -623,28 +623,14 @@
         let currentYear = null;
 
         // ==================== GESTION DES LOGS ====================
-        /**
-         * Récupère les logs depuis le LocalStorage
-         * @returns {Array} - Tableau des logs
-         */
         function getLogs() {
             return JSON.parse(localStorage.getItem('logs')) || [];
         }
 
-        /**
-         * Sauvegarde les logs dans le LocalStorage
-         * @param {Array} logs - Tableau des logs
-         */
         function saveLogs(logs) {
             localStorage.setItem('logs', JSON.stringify(logs));
         }
 
-        /**
-         * Ajoute un log
-         * @param {string} action - Action effectuée
-         * @param {string} details - Détails de l'action
-         * @param {string} type - Type de log (change, vacation, error)
-         */
         function addLog(action, details, type = 'change') {
             const log = {
                 timestamp: new Date().toISOString(),
@@ -655,9 +641,8 @@
             };
 
             const logs = getLogs();
-            logs.unshift(log); // Ajouter au début (les plus récents en haut)
+            logs.unshift(log);
             
-            // Garder seulement les 50 derniers logs
             if (logs.length > 50) {
                 logs.pop();
             }
@@ -666,9 +651,6 @@
             updateLogsDisplay();
         }
 
-        /**
-         * Met à jour l'affichage des logs
-         */
         function updateLogsDisplay() {
             const logs = getLogs();
             const logsContainer = document.getElementById('logsContainer');
@@ -693,9 +675,6 @@
             }).join('');
         }
 
-        /**
-         * Efface tous les logs
-         */
         function clearLogs() {
             if (confirm('Êtes-vous sûr de vouloir effacer tous les journaux ?')) {
                 localStorage.setItem('logs', JSON.stringify([]));
@@ -705,18 +684,10 @@
         }
 
         // ==================== GESTION DES OVERRIDES ====================
-        /**
-         * Récupère les overrides de responsable depuis le LocalStorage
-         * @returns {Object} - Objet des overrides {week-year: responsible}
-         */
         function getOverrides() {
             return JSON.parse(localStorage.getItem('overrides')) || {};
         }
 
-        /**
-         * Sauvegarde les overrides dans le LocalStorage
-         * @param {Object} overrides - Objet des overrides
-         */
         function saveOverrides(overrides) {
             localStorage.setItem('overrides', JSON.stringify(overrides));
         }
@@ -749,21 +720,25 @@
         }
 
         /**
-         * Obtient le lundi de la semaine ISO donnée
+         * Obtient le lundi de la semaine ISO donnée - Formule ISO 8601 correcte
          * @param {number} week - Numéro de semaine ISO
          * @param {number} year - Année ISO
          * @returns {Date} - Le lundi de la semaine
          */
         function getMondayOfWeek(week, year) {
+            // Formule ISO 8601 : Le jeudi (jour 4) est toujours en semaine 1
             const jan4 = new Date(year, 0, 4);
-            const dayOfWeek = jan4.getDay();
-            const monday1 = new Date(jan4);
-            monday1.setDate(jan4.getDate() - dayOfWeek + 1);
+            const dayOfWeek = jan4.getDay() || 7; // 1=lundi, 7=dimanche
             
-            const monday = new Date(monday1);
-            monday.setDate(monday1.getDate() + (week - 1) * 7);
+            // Calculer le lundi de la semaine 1
+            const diff = jan4.getDate() - dayOfWeek + 1;
+            const monday1 = new Date(year, 0, diff);
             
-            return monday;
+            // Calculer le lundi de la semaine demandée
+            const targetMonday = new Date(monday1);
+            targetMonday.setDate(monday1.getDate() + (week - 1) * 7);
+            
+            return targetMonday;
         }
 
         /**
@@ -797,19 +772,31 @@
             localStorage.setItem('vacations', JSON.stringify(vacations));
         }
 
-        function isOnVacation(collaborator, date) {
+        /**
+         * Vérifie si une personne est en vacances durant une semaine
+         * @param {string} collaborator - Nom du collaborateur
+         * @param {number} week - Numéro de semaine ISO
+         * @param {number} year - Année ISO
+         * @returns {boolean} - true si en vacances
+         */
+        function isOnVacationWeek(collaborator, week, year) {
             const vacations = getVacations();
+            const { startDate: mondayOfWeek, endDate: sundayOfWeek } = getWeekDates(week, year);
+            
             return vacations.some(v => {
                 const startDate = new Date(v.startDate);
                 const endDate = new Date(v.endDate);
+                
+                // Vérifier si la semaine chevauche les vacances
                 return v.collaborator === collaborator && 
-                       date >= startDate && 
-                       date <= endDate;
+                       mondayOfWeek <= endDate && 
+                       sundayOfWeek >= startDate;
             });
         }
 
         /**
-         * Obtient le responsable pour une semaine donnée avec gestion complète des rotations et vacances
+         * Obtient le responsable pour une semaine donnée
+         * Recalcule la rotation si quelqu'un est en vacances
          * @param {number} week - Numéro de semaine ISO
          * @param {number} year - Année ISO
          * @returns {string} - Nom du responsable
@@ -842,18 +829,16 @@
                 }
             }
 
-            const { startDate: mondayOfWeek } = getWeekDates(week, year);
-
-            // Chercher le premier disponible en partant de l'index nominal
             let index = (REFERENCE_INDEX + weeksFromReference) % TEAM.length;
             if (index < 0) index += TEAM.length;
             
             let responsible = TEAM[index];
+
+            // Si le responsable nominal est en vacances, chercher le premier disponible
             const maxIterations = 52;
             let iterations = 0;
 
-            // Si le responsable nominal est en vacances, passer au suivant
-            while (isOnVacation(responsible, mondayOfWeek) && iterations < maxIterations) {
+            while (isOnVacationWeek(responsible, week, year) && iterations < maxIterations) {
                 index = (index + 1) % TEAM.length;
                 responsible = TEAM[index];
                 iterations++;
@@ -916,7 +901,6 @@
             document.getElementById('endDate').value = '';
 
             updateVacationList();
-            // Recalculer la planification car les vacances affectent la rotation
             updateMainCard();
         }
 
@@ -935,7 +919,6 @@
             }
 
             updateVacationList();
-            // Recalculer la planification car les vacances affectent la rotation
             updateMainCard();
         }
 
@@ -944,7 +927,6 @@
                 localStorage.setItem('vacations', JSON.stringify([]));
                 addLog('🗑️ Tous les congés supprimés', 'Tous les enregistrements de vacances ont été effacés', 'vacation');
                 updateVacationList();
-                // Recalculer la planification car les vacances affectent la rotation
                 updateMainCard();
             }
         }
@@ -1065,7 +1047,6 @@
             updateVacationList();
             updateLogsDisplay();
 
-            // Fermer le modal au clic extérieur
             document.getElementById('modifyModal').addEventListener('click', function(e) {
                 if (e.target === this) {
                     closeModifyModal();
